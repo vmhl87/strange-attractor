@@ -8,6 +8,8 @@
 int main(int argc, char *argv[]){
 	if(argc < 13){printf("a sin(by) + c cos(dx), e sin(fx) + g cos(hy)\na b c d e f g h contrast shadow width height\n"); return 0;}
 
+	system("cp strange-attractor.bmp old.bmp");
+
 	const int sink = atoi(argv[9]), bg = atoi(argv[10]), bg2 = 255-bg;
 	const double a = atof(argv[1]),
 		  b = atof(argv[2]),
