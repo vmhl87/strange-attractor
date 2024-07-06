@@ -6,18 +6,22 @@
 #include "bmp.c"
 
 int main(int argc, char *argv[]){
-	if(argc < 9){printf("a b c d sink bg width height\n"); return 0;}
+	if(argc < 13){printf("a sin(by) + c cos(dx), e sin(fx) + g cos(hy)\na b c d e f g h contrast shadow width height\n"); return 0;}
 
-	const int sink = atoi(argv[5]), bg = atoi(argv[6]), bg2 = 255-bg;
+	const int sink = atoi(argv[9]), bg = atoi(argv[10]), bg2 = 255-bg;
 	const double a = atof(argv[1]),
 		  b = atof(argv[2]),
 		  c = atof(argv[3]),
 		  d = atof(argv[4]),
-		  srx = atof(argv[7]),
-		  sry = atof(argv[8]);
+		  e = atof(argv[5]),
+		  f = atof(argv[6]),
+		  g = atof(argv[7]),
+		  h = atof(argv[8]),
+		  srx = atof(argv[11]),
+		  sry = atof(argv[12]);
 	double x = .1, y = .1;
 
-	const int szx = 1200, szy = (int)(szx * sry / srx);
+	const int szx = 1200, szy = abs((int)(szx * sry / srx));
 
 	printf("grid alloc... "), fflush(stdout);
 	unsigned int *grid = malloc(sizeof(int) * szx * szy);
@@ -31,8 +35,8 @@ int main(int argc, char *argv[]){
 			ty = (int)(((sry-y)/sry/2)*szy);
 		if(tx >= 0 && tx < szx && ty >= 0 && ty < szy) ++grid[tx+ty*szx];
 
-		double nx = sin(a*y)+c*cos(a*x),
-			   ny = sin(b*x)+d*cos(b*y);
+		double nx = a*sin(b*y)+c*cos(d*x),
+			   ny = e*sin(f*x)+g*cos(h*y);
 		x = nx, y = ny;
 	}
 
