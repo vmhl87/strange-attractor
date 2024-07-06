@@ -1,3 +1,5 @@
+// chatgpt code. lmao
+
 #include <stdio.h>
 #include <stdlib.h>
 
