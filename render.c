@@ -66,7 +66,8 @@ int main(int argc, char *argv[]){
 
 	printf("done!\n");
 
-	generateBitmapImage(image, szy, szx, "strange-attractor.bmp");
+	// generateBitmapImage(image, szy, szx, "strange-attractor.bmp");
+	writeBMP("strange-attractor.bmp", image, szx, szy);
 
 	system("convert strange-attractor.bmp processed.png");
 }

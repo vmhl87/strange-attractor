@@ -1,90 +1,74 @@
-// Courtesy of https://stackoverflow.com/a/47785639/24860193
-
 #include <stdio.h>
+#include <stdlib.h>
 
-const int BYTES_PER_PIXEL = 3; /// red, green, & blue
-const int FILE_HEADER_SIZE = 14;
-const int INFO_HEADER_SIZE = 40;
+#pragma pack(push, 1)
+typedef struct {
+    unsigned char bfType[2];       // File type
+    unsigned int bfSize;           // File size in bytes
+    unsigned short bfReserved1;    // Reserved
+    unsigned short bfReserved2;    // Reserved
+    unsigned int bfOffBits;        // Offset to image data, bytes
+} BITMAPFILEHEADER;
 
-void generateBitmapImage(unsigned char* image, int height, int width, char* imageFileName);
-unsigned char* createBitmapFileHeader(int height, int stride);
-unsigned char* createBitmapInfoHeader(int height, int width);
+typedef struct {
+    unsigned int biSize;           // Header size in bytes
+    int biWidth;                   // Width of image
+    int biHeight;                  // Height of image
+    unsigned short biPlanes;       // Number of color planes
+    unsigned short biBitCount;     // Bits per pixel
+    unsigned int biCompression;    // Compression type
+    unsigned int biSizeImage;      // Image size in bytes
+    int biXPelsPerMeter;           // Pixels per meter X
+    int biYPelsPerMeter;           // Pixels per meter Y
+    unsigned int biClrUsed;        // Number of colors
+    unsigned int biClrImportant;   // Important colors
+} BITMAPINFOHEADER;
+#pragma pack(pop)
 
-void generateBitmapImage (unsigned char* image, int height, int width, char* imageFileName)
-{
-    int widthInBytes = width * BYTES_PER_PIXEL;
-
-    unsigned char padding[3] = {0, 0, 0};
-    int paddingSize = (4 - (widthInBytes) % 4) % 4;
-
-    int stride = (widthInBytes) + paddingSize;
-
-    FILE* imageFile = fopen(imageFileName, "wb");
-
-    unsigned char* fileHeader = createBitmapFileHeader(height, stride);
-    fwrite(fileHeader, 1, FILE_HEADER_SIZE, imageFile);
-
-    unsigned char* infoHeader = createBitmapInfoHeader(height, width);
-    fwrite(infoHeader, 1, INFO_HEADER_SIZE, imageFile);
-
-    int i;
-    for (i = 0; i < height; i++) {
-        fwrite(image + (i*widthInBytes), BYTES_PER_PIXEL, width, imageFile);
-        fwrite(padding, 1, paddingSize, imageFile);
+void writeBMP(const char *filename, const unsigned char *data, int width, int height) {
+    FILE *file = fopen(filename, "wb");
+    if (!file) {
+        perror("Cannot open file");
+        exit(1);
     }
 
-    fclose(imageFile);
-}
+    BITMAPFILEHEADER fileHeader;
+    BITMAPINFOHEADER infoHeader;
 
-unsigned char* createBitmapFileHeader (int height, int stride)
-{
-    int fileSize = FILE_HEADER_SIZE + INFO_HEADER_SIZE + (stride * height);
+    int row_padded = (width * 3 + 3) & (~3);
+    int imageSize = row_padded * height;
 
-    static unsigned char fileHeader[] = {
-        0,0,     /// signature
-        0,0,0,0, /// image file size in bytes
-        0,0,0,0, /// reserved
-        0,0,0,0, /// start of pixel array
-    };
+    // Fill file header
+    fileHeader.bfType[0] = 'B';
+    fileHeader.bfType[1] = 'M';
+    fileHeader.bfSize = 54 + imageSize;
+    fileHeader.bfReserved1 = 0;
+    fileHeader.bfReserved2 = 0;
+    fileHeader.bfOffBits = 54;
 
-    fileHeader[ 0] = (unsigned char)('B');
-    fileHeader[ 1] = (unsigned char)('M');
-    fileHeader[ 2] = (unsigned char)(fileSize      );
-    fileHeader[ 3] = (unsigned char)(fileSize >>  8);
-    fileHeader[ 4] = (unsigned char)(fileSize >> 16);
-    fileHeader[ 5] = (unsigned char)(fileSize >> 24);
-    fileHeader[10] = (unsigned char)(FILE_HEADER_SIZE + INFO_HEADER_SIZE);
+    // Fill info header
+    infoHeader.biSize = 40;
+    infoHeader.biWidth = width;
+    infoHeader.biHeight = -height;  // negative to store the image right-side up
+    infoHeader.biPlanes = 1;
+    infoHeader.biBitCount = 24;
+    infoHeader.biCompression = 0;
+    infoHeader.biSizeImage = imageSize;
+    infoHeader.biXPelsPerMeter = 0;
+    infoHeader.biYPelsPerMeter = 0;
+    infoHeader.biClrUsed = 0;
+    infoHeader.biClrImportant = 0;
 
-    return fileHeader;
-}
+    fwrite(&fileHeader, sizeof(fileHeader), 1, file);
+    fwrite(&infoHeader, sizeof(infoHeader), 1, file);
 
-unsigned char* createBitmapInfoHeader (int height, int width)
-{
-    static unsigned char infoHeader[] = {
-        0,0,0,0, /// header size
-        0,0,0,0, /// image width
-        0,0,0,0, /// image height
-        0,0,     /// number of color planes
-        0,0,     /// bits per pixel
-        0,0,0,0, /// compression
-        0,0,0,0, /// image size
-        0,0,0,0, /// horizontal resolution
-        0,0,0,0, /// vertical resolution
-        0,0,0,0, /// colors in color table
-        0,0,0,0, /// important color count
-    };
+    // Write the pixel data
+    for (int i = height-1; i >= 0; i--) {
+        fwrite(data + (width * 3 * i), 3, width, file);
+        for (int j = 0; j < row_padded - width * 3; j++) {
+            fputc(0, file);
+        }
+    }
 
-    infoHeader[ 0] = (unsigned char)(INFO_HEADER_SIZE);
-    infoHeader[ 4] = (unsigned char)(width      );
-    infoHeader[ 5] = (unsigned char)(width >>  8);
-    infoHeader[ 6] = (unsigned char)(width >> 16);
-    infoHeader[ 7] = (unsigned char)(width >> 24);
-    infoHeader[ 8] = (unsigned char)(height      );
-    infoHeader[ 9] = (unsigned char)(height >>  8);
-    infoHeader[10] = (unsigned char)(height >> 16);
-    infoHeader[11] = (unsigned char)(height >> 24);
-    infoHeader[12] = (unsigned char)(1);
-    infoHeader[14] = (unsigned char)(BYTES_PER_PIXEL*8);
-
-    return infoHeader;
+    fclose(file);
 }
